@@ -367,21 +367,32 @@ object Main {
     var result = false
 
     if(adminClient.isDefined) {
-      val deleteTopicsResult = adminClient.get.deleteTopics(java.util.Collections.singletonList(topic))
+      val extantTopics = adminClient.get.listTopics.names.get
+      var found = false
 
-      var deleteTopicsResultIterator = deleteTopicsResult.values.entrySet.iterator
-      while(deleteTopicsResultIterator.hasNext) {
-        val entry = deleteTopicsResultIterator.next
+      extantTopics.asScala.foreach(x => if(x == topic) {found = true})
+      
+      found match {
+        case true => {
+          val deleteTopicsResult = adminClient.get.deleteTopics(java.util.Collections.singletonList(topic))
 
-        Try {
-          println(s"${entry.getKey}: ${entry.getValue.get(2, TimeUnit.SECONDS)}")
-        } match {
-          case Success(_) => {}
-          case Failure(exception) => println(exception)
+          var deleteTopicsResultIterator = deleteTopicsResult.values.entrySet.iterator
+          while(deleteTopicsResultIterator.hasNext) {
+            val entry = deleteTopicsResultIterator.next
+
+            Try {
+              println(s"${entry.getKey}: ${entry.getValue.get(2, TimeUnit.SECONDS)}")
+            } match {
+              case Success(_) => {}
+              case Failure(exception) => println(exception)
+            }
+          }
+
+          result = true
         }
-      }
 
-      result = true
+        case false => println(s"Topic '$topic' not found")
+      }
     }
 
     result
