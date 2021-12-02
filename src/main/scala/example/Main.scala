@@ -175,7 +175,7 @@ object Main {
   def createTopic(topic: String, partitions: Int = 1, replicationFactor: Short = 1): Boolean = {
     var result = false
 
-    if(adminClient.isDefined) {
+    if(adminClient.isDefined && !topicExists(topic)) {
       val createTopicsResult = adminClient.get.createTopics(java.util.Collections.singletonList(new NewTopic(topic, partitions, replicationFactor)))
 
       var createTopicsResultIterator = createTopicsResult.values.entrySet.iterator
