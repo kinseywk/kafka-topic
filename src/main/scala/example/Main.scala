@@ -19,6 +19,8 @@ import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, ListTopic
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 
+import org.apache.log4j.{Level, Logger}
+
 /*Apparently pureconfig is better than typesafe conf, but the docs recommend against using it with Scala < 2.12, and we're using 2.11
 import pureconfig._
 import pureconfig.generic.auto._
@@ -43,6 +45,12 @@ object Main {
   val DELETE_TOPIC = 6
   val DISPLAY_TOPICS = 7
   val EXIT = 8
+
+	val rootLogger = Logger.getRootLogger()
+	rootLogger.setLevel(Level.ERROR)
+	
+	Logger.getLogger("org.apache.spark").setLevel(Level.ERROR)
+	Logger.getLogger("org.spark-project").setLevel(Level.ERROR)
 
   //implicit val messageSerde = new StreamsSerde().messageSerde
 
@@ -150,6 +158,18 @@ object Main {
     }
     
     true
+  }
+
+  def listTopics(): java.util.Set[String] = {
+    if(adminClient.isEmpty) {
+      throw new Exception("Unable to connect to Kafka")
+    }
+    
+    adminClient.get.listTopics.names.get
+  }
+
+  def topicExists(topic: String): Boolean = {
+    listTopics.contains(topic)
   }
 
   def createTopic(topic: String, partitions: Int = 1, replicationFactor: Short = 1): Boolean = {
@@ -366,13 +386,8 @@ object Main {
   def deleteTopic(topic: String): Boolean = {
     var result = false
 
-    if(adminClient.isDefined) {
-      val extantTopics = adminClient.get.listTopics.names.get
-      var found = false
-
-      extantTopics.asScala.foreach(x => if(x == topic) {found = true})
-      
-      found match {
+    if(adminClient.isDefined) {      
+      topicExists(topic) match {
         case true => {
           val deleteTopicsResult = adminClient.get.deleteTopics(java.util.Collections.singletonList(topic))
 
@@ -399,14 +414,8 @@ object Main {
   }
 
   def displayAllTopics(): Boolean = {
-    var result = false
+    println(listTopics)
 
-    if(adminClient.isDefined) {
-      println(adminClient.get.listTopics.names.get)
-
-      result = true
-    }
-
-    result
+    true
   }
 }
