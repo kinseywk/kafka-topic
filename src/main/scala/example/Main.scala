@@ -200,7 +200,7 @@ object Main {
   def produceMessageForTopic(topic: String, message: String): Boolean = {
     var result = false
 
-    if(adminClient.isDefined) {
+    if(adminClient.isDefined && topicExists(topic)) {
       val props: Properties = new Properties()
       props.put("group.id", "default")
       props.put("bootstrap.servers", "sandbox-hdp.hortonworks.com:6667")
