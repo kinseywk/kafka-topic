@@ -15,11 +15,12 @@ object KafkaTopics extends App {
 
   var topics = List("foo", "bar", "qux")
   init()
-  listTopics()
+  println(listTopics())
   createTopics(topics)
-  listTopics()
+  Thread.sleep(2000)
+  println(listTopics())
   deleteTopics(topics)
-  listTopics()
+  println(listTopics())
   cleanup()
   
   def init(host: String = "sandbox-hdp.hortonworks.com", port: Int = 6667){
@@ -42,6 +43,7 @@ object KafkaTopics extends App {
   def cleanup() = {
     if(adminClient.isDefined) {
       adminClient.get.close()
+      println("Disconnected from Kafka")
     }
   }
 
@@ -50,7 +52,7 @@ object KafkaTopics extends App {
       adminClient.get.listTopics((new ListTopicsOptions()).listInternal(listInternal).timeoutMs(timeout)).names.get
     } else {
       println("Error: Not connected to Kafka")
-      new java.util.LinkedHashSet[String]()
+      null
     }
   }
 
