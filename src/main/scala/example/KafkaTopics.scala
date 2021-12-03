@@ -80,8 +80,7 @@ object KafkaTopics extends App {
         val entry = createTopicsResultIterator.next
 
         Try {
-          //entry.getValue.thenApply((x) => println(x))
-          println(s"${entry.getKey}: ${entry.getValue.get(2, TimeUnit.SECONDS)}")
+          println(s"Topic '${entry.getKey}' created successfully")
         } match {
           case Success(_) => {}
           case Failure(exception) => println(exception)
@@ -90,7 +89,7 @@ object KafkaTopics extends App {
 
       result = true
     } else {
-      println(s"Error: Topic $topic already exists")
+      println(s"Error: Topic '$topic' already exists")
     }
 
     result
@@ -111,7 +110,7 @@ object KafkaTopics extends App {
         val entry = deleteTopicsResultIterator.next
 
         Try {
-          println(s"${entry.getKey}: ${entry.getValue.get(2, TimeUnit.SECONDS)}")
+          println(s"Topic '${entry.getKey}' deleted")
         } match {
           case Success(_) => {}
           case Failure(exception) => println(exception)
