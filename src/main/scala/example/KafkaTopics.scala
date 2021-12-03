@@ -6,33 +6,72 @@ import scala.util.control.Breaks._
 import scala.util.{Try, Success, Failure}
 import java.util.{Collections, Properties}
 import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
-import org.ekrich.config._
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.{KafkaStreams, StreamsConfig}
-import org.apache.kafka.streams.scala.kstream._
 import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig, ListTopicsOptions, NewTopic}
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-import org.apache.kafka.clients.consumer.KafkaConsumer
 
-import org.apache.log4j.{Level, Logger}
+object KafkaTopics extends App {
+  var adminClient: Option[AdminClient] = None
 
-object KafkaTopics {
-  def listTopics(adminClient: AdminClient, listInternal: Boolean = false, timeout: Int = 500): java.util.Set[String] = {
-    adminClient.listTopics((new ListTopicsOptions()).listInternal(listInternal).timeoutMs(timeout)).names.get
+  var topics = List("foo", "bar", "qux")
+  init()
+  listTopics()
+  createTopics(topics)
+  listTopics()
+  deleteTopics(topics)
+  listTopics()
+  cleanup()
+  
+  def init(host: String = "sandbox-hdp.hortonworks.com", port: Int = 6667){
+    if(adminClient.isEmpty) {
+      val props: Properties = new Properties()
+
+      props.put("bootstrap.servers", s"$host:$port")
+      adminClient = Some(AdminClient.create(props))
+      println("Connected to Kafka server as administrator")
+      /*
+      props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+      props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer")
+      props.put("acks", "all")
+      */
+    } else {
+      println("Error: Already connected to Kafka")
+    }
+  }
+  
+  def cleanup() = {
+    if(adminClient.isDefined) {
+      adminClient.get.close()
+    }
   }
 
-  def topicExists(adminClient: AdminClient, topic: String): Boolean = {
-    listTopics(adminClient).contains(topic)
+  def listTopics(listInternal: Boolean = false, timeout: Int = 500): java.util.Set[String] = {
+    if(adminClient.isDefined) {
+      adminClient.get.listTopics((new ListTopicsOptions()).listInternal(listInternal).timeoutMs(timeout)).names.get
+    } else {
+      println("Error: Not connected to Kafka")
+      new java.util.LinkedHashSet[String]()
+    }
   }
 
-  def createTopic(adminClient: AdminClient, topic: String, partitions: Int = 1, replicationFactor: Short = 1): Boolean = {
+  def topicExists(topic: String): Boolean = {
+    if(adminClient.isDefined) {
+      listTopics().contains(topic)
+    } else {
+      println("Error: Not connected to Kafka")
+      false
+    }
+  }
+
+  def createTopics(topics: Seq[String]): Unit = {
+    topics.foreach(x => createTopic(x))
+  }
+
+  def createTopic(topic: String, partitions: Int = 1, replicationFactor: Short = 1): Boolean = {
     var result = false
 
-    if(!topicExists(adminClient, topic)) {
-      val createTopicsResult = adminClient.createTopics(java.util.Collections.singletonList(new NewTopic(topic, partitions, replicationFactor)))
+    if(!topicExists(topic)) {
+      val createTopicsResult = adminClient.get.createTopics(java.util.Collections.singletonList(new NewTopic(topic, partitions, replicationFactor)))
 
       var createTopicsResultIterator = createTopicsResult.values.entrySet.iterator
       while(createTopicsResultIterator.hasNext) {
@@ -55,11 +94,15 @@ object KafkaTopics {
     result
   }
 
-  def deleteTopic(adminClient: AdminClient, topic: String): Boolean = {
+  def deleteTopics(topics: Seq[String]): Unit = {
+    topics.foreach(x => deleteTopic(x))
+  }
+
+  def deleteTopic(topic: String): Boolean = {
     var result = false
 
-    if(topicExists(adminClient, topic)) {
-      val deleteTopicsResult = adminClient.deleteTopics(java.util.Collections.singletonList(topic))
+    if(topicExists(topic)) {
+      val deleteTopicsResult = adminClient.get.deleteTopics(java.util.Collections.singletonList(topic))
 
       var deleteTopicsResultIterator = deleteTopicsResult.values.entrySet.iterator
       while(deleteTopicsResultIterator.hasNext) {
