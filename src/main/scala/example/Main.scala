@@ -83,11 +83,11 @@ object Main {
       init()
     } match {
       case Success(_) => {
-        println("Successfully initialized Kafka connection\n")
+        println("Successfully initialized Kafka connection")
 
         var loop = true
         while(loop) {
-          println("Main Menu")
+          println("\nMain Menu")
           println("---------")
           println("1. Create a topic")
           println("2. Send a message about a topic")
@@ -160,16 +160,16 @@ object Main {
     true
   }
 
-  def listTopics(): java.util.Set[String] = {
+  def listTopics(listInternal: Boolean = false, timeout: Int = 500): java.util.Set[String] = {
     if(adminClient.isEmpty) {
       throw new Exception("Unable to connect to Kafka")
     }
     
-    adminClient.get.listTopics.names.get
+    adminClient.get.listTopics(new ListTopicsOptions().listInternal(listInternal).timeoutMs(timeout)).names.get
   }
 
   def topicExists(topic: String): Boolean = {
-    listTopics.contains(topic)
+    listTopics().contains(topic)
   }
 
   def createTopic(topic: String, partitions: Int = 1, replicationFactor: Short = 1): Boolean = {
@@ -221,8 +221,8 @@ object Main {
       val producer = new KafkaProducer[String, String](props)
 
       Try {
-        //val key = message(0).toInt % 10
-        val key = 1
+        val key = message(0).toInt % 10
+        //val key = 1
         val record = new ProducerRecord[String, String](topic, key.toString, message)
         val metadata = producer.send(record)
         println(s"Sent record { key = '$key', value = '$message' }\nReceived metadata { partition = '${metadata.get.partition}', offset = '${metadata.get.offset}' }")
@@ -238,13 +238,12 @@ object Main {
     result
   }
 
-  def consumeMessagesForTopic(topic: String): Boolean = {
+  def consumeMessagesForTopic(topic: String, timeout: Int = 1500): Boolean = {
     var result = false
 
     if(adminClient.isDefined) {
       val props: Properties = new Properties()
       props.put("group.id", "default")
-      // props.put("bootstrap.servers","localhost:9092")
       props.put("bootstrap.servers", "sandbox-hdp.hortonworks.com:6667")
       props.put(
         "key.deserializer",
@@ -273,8 +272,6 @@ object Main {
           val i = it.next
           consumer.seek(i, offsets.get(i))
         }
-
-        val timeout = 2000
 
         println(s"Polling for records on topic '$topic'...")
         while(time < timeout) {
@@ -414,7 +411,13 @@ object Main {
   }
 
   def displayAllTopics(): Boolean = {
-    println(listTopics)
+    val topics = listTopics()
+    val size = topics.size()
+
+    size match {
+      case 0 => println("No topics found")
+      case _ => println(s"Found $size topics: $topics")
+    }
 
     true
   }
